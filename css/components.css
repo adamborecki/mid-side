@@ -1,0 +1,259 @@
+/* ============= Sliders & knobs ============= */
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 160px;
+}
+.control label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  display: flex;
+  justify-content: space-between;
+}
+.control label .value { color: var(--text); font-family: var(--mono); }
+.control input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  outline: none;
+}
+.control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.control input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+.control.mid input[type="range"]::-webkit-slider-thumb { background: var(--mid); }
+.control.side input[type="range"]::-webkit-slider-thumb { background: var(--side); }
+.control.mid input[type="range"]::-moz-range-thumb { background: var(--mid); }
+.control.side input[type="range"]::-moz-range-thumb { background: var(--side); }
+
+select.input, input.input {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font: inherit;
+}
+
+/* ============= Tab panels ============= */
+.panel { animation: fade 160ms ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+
+/* ============= Visualizers ============= */
+.viz {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.viz h3 { margin: 0; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-dim); }
+.viz canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #0a0d12;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.viz-caption { font-size: 12px; color: var(--text-dim); }
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--gap);
+}
+
+/* ============= Transport ============= */
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.transport .pill {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+/* ============= EQ band group ============= */
+.eq-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .eq-group { grid-template-columns: 1fr; }
+}
+.eq-group h3 { grid-column: 1 / -1; margin-bottom: -4px; }
+
+.bus-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  background: var(--bg-elev-2);
+}
+.bus-block.mid { border-left: 3px solid var(--mid); }
+.bus-block.side { border-left: 3px solid var(--side); }
+.bus-block h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ============= Lessons ============= */
+.lesson-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.lesson-nav button {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font: inherit;
+}
+.lesson-nav button.active { color: var(--text); background: var(--bg-elev-2); border-color: var(--accent-2); }
+.lesson-nav button.done::before { content: "✓ "; color: var(--good); }
+
+.lesson-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--gap);
+}
+@media (max-width: 880px) {
+  .lesson-step { grid-template-columns: 1fr; }
+}
+
+.callout {
+  background: rgba(88, 166, 255, 0.08);
+  border-left: 3px solid var(--accent-2);
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+
+.lesson-progress {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+/* ============= Quiz ============= */
+.quiz-question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.quiz-option {
+  text-align: left;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  transition: background 120ms ease;
+}
+.quiz-option:hover { background: #232a36; }
+.quiz-option.correct { border-color: var(--good); background: rgba(63, 185, 80, 0.12); }
+.quiz-option.incorrect { border-color: var(--bad); background: rgba(248, 81, 73, 0.12); }
+.quiz-option:disabled { cursor: default; }
+
+.quiz-feedback {
+  background: var(--bg-elev-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent-2);
+  font-size: 13px;
+}
+
+.quiz-summary { text-align: center; padding: 24px; }
+.quiz-score { font-size: 36px; font-weight: 700; color: var(--accent); }
+
+/* ============= Challenge ============= */
+.scenario {
+  display: grid;
+  gap: 12px;
+}
+.scenario textarea {
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font: inherit;
+  resize: vertical;
+  min-height: 70px;
+}
+.share-output {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* ============= Misc ============= */
+.preset-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
