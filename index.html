@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mid-Side Lab — learn M/S signal processing</title>
+  <meta name="description" content="An interactive, in-browser tool for learning mid-side stereo signal processing." />
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">M/S</span>
+      <span class="brand-name">Mid-Side Lab</span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" data-tab="lessons" aria-selected="true">Lessons</button>
+      <button class="tab" role="tab" data-tab="playground" aria-selected="false">Playground</button>
+      <button class="tab" role="tab" data-tab="quiz" aria-selected="false">Quiz</button>
+      <button class="tab" role="tab" data-tab="challenge" aria-selected="false">Challenge</button>
+    </nav>
+    <label class="adv-toggle">
+      <input type="checkbox" id="advanced-toggle" />
+      <span>Advanced</span>
+    </label>
+  </header>
+
+  <main>
+    <section class="panel" id="panel-lessons" role="tabpanel" aria-labelledby="tab-lessons"></section>
+    <section class="panel hidden" id="panel-playground" role="tabpanel" aria-labelledby="tab-playground"></section>
+    <section class="panel hidden" id="panel-quiz" role="tabpanel" aria-labelledby="tab-quiz"></section>
+    <section class="panel hidden" id="panel-challenge" role="tabpanel" aria-labelledby="tab-challenge"></section>
+  </main>
+
+  <footer class="footbar">
+    <span>Built for learning. Audio is synthesized in your browser — nothing is uploaded.</span>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
