@@ -93,6 +93,29 @@ select.input, input.input {
   gap: 10px;
   flex-wrap: wrap;
 }
+.transport-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.global-transport {
+  position: sticky;
+  top: 56px;
+  z-index: 9;
+  background: rgba(14, 17, 23, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.global-transport.is-locked { display: none; }
+.global-transport .btn { padding: 6px 12px; font-size: 13px; }
+.global-transport select.input { padding: 5px 8px; font-size: 13px; }
 .transport .pill {
   font-family: var(--mono);
   font-size: 12px;

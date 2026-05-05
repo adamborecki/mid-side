@@ -3,6 +3,7 @@
 import { initTabs } from "./ui/tabs.js";
 import { initAdvancedToggle } from "./ui/advancedToggle.js";
 import { initAudioGate } from "./ui/audioGate.js";
+import { buildTransport } from "./ui/transport.js";
 import { renderPlayground } from "./ui/playground.js";
 import { renderLessons } from "./ui/lessons.js";
 import { renderQuiz } from "./ui/quiz.js";
@@ -59,6 +60,13 @@ renderTab(initialTab);
 // Show the explicit "Start audio" gate. Mobile browsers (especially iOS
 // Safari) require a deliberate tap on a control inside the gesture chain.
 initAudioGate();
+
+// Mount the global transport bar (Play/Stop, source, Bypass, Mono check).
+// Hidden while the audio gate is up, since none of those controls work yet.
+const transportHost = document.getElementById("global-transport");
+transportHost.appendChild(buildTransport({ showSource: true, showBypass: true, showMono: true }));
+if (!engine.audioUnlocked) transportHost.classList.add("is-locked");
+window.addEventListener("audio:unlocked", () => transportHost.classList.remove("is-locked"));
 
 // Dev-only round-trip null assertion: when engine starts up flat, encoding
 // and decoding should reproduce the input. We don't pipe to the speakers — we

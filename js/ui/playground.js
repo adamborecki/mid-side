@@ -1,6 +1,6 @@
 // Playground: full interactive M/S surface with all visualizers.
 
-import { engine, SOURCE_DEFS } from "../audio/engine.js";
+import { engine } from "../audio/engine.js";
 import { makeSlider, makeToggleButton, showToast } from "./controls.js";
 import { buildVisualizerGrid } from "./visualizerPanel.js";
 
@@ -35,37 +35,11 @@ export function renderPlayground(panel) {
   const transport = document.createElement("div");
   transport.className = "transport";
   header.appendChild(transport);
-
-  const playBtn = document.createElement("button");
-  playBtn.className = "btn primary";
-  playBtn.textContent = "Play";
-  playBtn.addEventListener("click", async () => {
-    await engine.toggle();
-  });
-  transport.appendChild(playBtn);
-
-  const sourceSel = document.createElement("select");
-  sourceSel.className = "input";
-  for (const s of SOURCE_DEFS) {
-    const o = document.createElement("option");
-    o.value = s.id; o.textContent = s.label; sourceSel.appendChild(o);
-  }
-  sourceSel.value = engine.state.sourceId;
-  sourceSel.addEventListener("change", () => engine.setSource(sourceSel.value));
-  transport.appendChild(sourceSel);
-
-  const bypassToggle = makeToggleButton({
-    label: "Bypass",
-    pressed: engine.state.bypass,
-    onChange: (v) => engine.setBypass(v),
-  });
-  const monoToggle = makeToggleButton({
-    label: "Mono check",
-    pressed: engine.state.monoSum,
-    onChange: (v) => engine.setMonoSum(v),
-  });
-  transport.appendChild(bypassToggle.el);
-  transport.appendChild(monoToggle.el);
+  const transportHint = document.createElement("span");
+  transportHint.className = "dim";
+  transportHint.style.fontSize = "12px";
+  transportHint.textContent = "Use the bar at the top of the page to play, change source, bypass, or mono-check.";
+  transport.appendChild(transportHint);
 
   const resetBtn = document.createElement("button");
   resetBtn.className = "btn";
@@ -153,7 +127,7 @@ export function renderPlayground(panel) {
   root.appendChild(buildVisualizerGrid(engine));
 
   // ===== State sync =====
-  const refs = { playBtn, sourceSel, bypassToggle, monoToggle, midSoloBtn, sideSoloBtn, midGainSlider, widthSlider, midEq, sideEq };
+  const refs = { midSoloBtn, sideSoloBtn, midGainSlider, widthSlider, midEq, sideEq };
   const unsub = engine.on(() => syncFromState(refs));
   syncFromState(refs);
 
@@ -241,10 +215,6 @@ function buildEqGroup(bus, store) {
 
 function syncFromState(refs) {
   const s = engine.state;
-  refs.playBtn.textContent = s.playing ? "Stop" : "Play";
-  refs.sourceSel.value = s.sourceId;
-  refs.bypassToggle.set(s.bypass);
-  refs.monoToggle.set(s.monoSum);
   refs.midSoloBtn.set(s.midSolo);
   refs.sideSoloBtn.set(s.sideSolo);
   refs.midGainSlider.set(s.midGain);
