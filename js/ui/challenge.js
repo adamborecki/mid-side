@@ -215,11 +215,26 @@ export function renderChallenge(panel) {
   renderScenario();
 }
 
+let _lastChallengeSource = null;
+let _challengeGen = 0;
+
 async function applySetup({ sourceId }) {
+  _lastChallengeSource = sourceId;
+  const myGen = ++_challengeGen;
   engine.resetAll();
   if (sourceId && sourceId !== engine.state.sourceId) await engine.setSource(sourceId);
-  if (!engine.state.playing) await engine.play();
+  if (myGen !== _challengeGen) return;
+  if (!engine.state.playing && engine.audioUnlocked) await engine.play();
 }
+
+window.addEventListener("audio:unlocked", () => {
+  // Only retry if the Challenge tab is currently visible — otherwise lessons
+  // (or another tab) owns the active setup.
+  const challengePanel = document.getElementById("panel-challenge");
+  if (challengePanel && !challengePanel.classList.contains("hidden") && _lastChallengeSource) {
+    applySetup({ sourceId: _lastChallengeSource });
+  }
+});
 
 function snapshotEngineState() {
   const s = engine.state;

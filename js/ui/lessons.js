@@ -253,11 +253,29 @@ export function renderLessons(panel) {
   renderStep();
 }
 
-async function applySetup({ sourceId, play, reset }) {
+// Track the most recent setup so we can replay it once audio unlocks.
+let _lastSetup = null;
+let _setupGen = 0;
+
+async function applySetup(setup) {
+  _lastSetup = setup;
+  const myGen = ++_setupGen;
+  const { sourceId, play, reset } = setup;
   if (reset) engine.resetAll();
   if (sourceId && sourceId !== engine.state.sourceId) await engine.setSource(sourceId);
-  if (play && !engine.state.playing) await engine.play();
+  // Bail if a newer setup superseded this one mid-await.
+  if (myGen !== _setupGen) return;
+  if (play && !engine.state.playing && engine.audioUnlocked) await engine.play();
 }
+
+// When the user finally taps Start audio, replay the current step's setup
+// from scratch so source/reset and play happen in the right order. Only do
+// this if the Lessons tab is the visible one — otherwise we'd hijack audio
+// for whatever tab the user actually has open.
+window.addEventListener("audio:unlocked", () => {
+  const panel = document.getElementById("panel-lessons");
+  if (panel && !panel.classList.contains("hidden") && _lastSetup) applySetup(_lastSetup);
+});
 
 function buildLessonControls(keys) {
   const card = document.createElement("div");

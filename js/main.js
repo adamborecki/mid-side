@@ -2,6 +2,7 @@
 
 import { initTabs } from "./ui/tabs.js";
 import { initAdvancedToggle } from "./ui/advancedToggle.js";
+import { initAudioGate } from "./ui/audioGate.js";
 import { renderPlayground } from "./ui/playground.js";
 import { renderLessons } from "./ui/lessons.js";
 import { renderQuiz } from "./ui/quiz.js";
@@ -55,14 +56,9 @@ const initialTab = ["lessons", "playground", "quiz", "challenge"].find((n) =>
 ) || "lessons";
 renderTab(initialTab);
 
-// Resume audio context on the first user gesture (Safari requirement).
-const resume = async () => {
-  await engine.ensureCtx();
-  document.removeEventListener("pointerdown", resume);
-  document.removeEventListener("keydown", resume);
-};
-document.addEventListener("pointerdown", resume, { once: false });
-document.addEventListener("keydown", resume, { once: false });
+// Show the explicit "Start audio" gate. Mobile browsers (especially iOS
+// Safari) require a deliberate tap on a control inside the gesture chain.
+initAudioGate();
 
 // Dev-only round-trip null assertion: when engine starts up flat, encoding
 // and decoding should reproduce the input. We don't pipe to the speakers — we

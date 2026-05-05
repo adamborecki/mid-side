@@ -32,9 +32,26 @@ export class Engine {
       const Ctor = window.AudioContext || window.webkitAudioContext;
       this.ctx = new Ctor();
       this._buildGraph();
+      this.ctx.addEventListener?.("statechange", () => this._announceIfUnlocked());
     }
-    if (this.ctx.state === "suspended") await this.ctx.resume();
+    if (this.ctx.state === "suspended") {
+      // Don't await — on iOS Safari `await` between the user gesture and
+      // resume() can break the gesture chain. Fire-and-forget.
+      this.ctx.resume();
+    }
+    this._announceIfUnlocked();
     return this.ctx;
+  }
+
+  _announceIfUnlocked() {
+    if (this.audioUnlocked && !this._unlockedAnnounced) {
+      this._unlockedAnnounced = true;
+      window.dispatchEvent(new CustomEvent("audio:unlocked"));
+    }
+  }
+
+  get audioUnlocked() {
+    return !!(this.ctx && this.ctx.state === "running");
   }
 
   _buildGraph() {
@@ -142,6 +159,13 @@ export class Engine {
 
   async play() {
     await this.ensureCtx();
+    // If the audio context still isn't running (mobile autoplay block,
+    // user hasn't tapped yet), bail quietly. The audio gate will retry.
+    if (!this.audioUnlocked) {
+      this.state.playing = false;
+      this._emit();
+      return;
+    }
     if (this._currentSource) {
       try { this._currentSource.stop(); } catch {}
     }
