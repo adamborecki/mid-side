@@ -1,8 +1,9 @@
 // Lessons: step-through walkthroughs with paired audio + visualizers + a checkpoint.
 
-import { engine } from "../audio/engine.js";
-import { makeSlider, makeToggleButton } from "./controls.js";
+import { engine, SOURCE_DEFS } from "../audio/engine.js";
+import { makeSlider, makeToggleButton, showToast } from "./controls.js";
 import { buildVisualizerGrid } from "./visualizerPanel.js";
+import { tracker } from "../util/tracker.js";
 
 const KEY = "midside-lesson-progress";
 
@@ -25,8 +26,10 @@ const LESSONS = [
       },
       {
         body: `<p>Try a <em>vocal-ish</em> sound. Notice how the goniometer collapses to a near-vertical line — almost everything is in the center (mid).</p>
-        <p>Now try the <em>pad chord</em>. Wide horizontal cloud — there's a lot of side energy.</p>`,
+        <p>Now try the <em>pad chord</em>. Wide horizontal cloud — there's a lot of side energy.</p>
+        <p class="dim">Use the buttons in the right column to switch between the two.</p>`,
         setup: { sourceId: "vocal", play: true },
+        sourceChoices: ["vocal", "pad"],
         viz: ["goniometer", "imageArc"],
         checkpoint: {
           q: "On the goniometer, what does a perfectly vertical line mean?",
@@ -51,6 +54,15 @@ const LESSONS = [
         <p>Compare the two waveform views below — same audio, two different ways of looking at it.</p>`,
         setup: { sourceId: "mix", play: true },
         viz: ["waveLR", "waveMS", "meters"],
+        checkpoint: {
+          q: "Comparing the L/R waveform and the M/S waveform of the same audio shows that…",
+          options: [
+            { text: "They contain the same information, just encoded differently.", correct: true },
+            { text: "M/S has less detail than L/R." },
+            { text: "L/R is louder than M/S." },
+            { text: "They're unrelated — different signals." },
+          ],
+        },
       },
     ],
   },
@@ -88,6 +100,15 @@ const LESSONS = [
         setup: { sourceId: "pad", play: true, reset: true },
         controls: ["width"],
         viz: ["goniometer", "imageArc", "correlation"],
+        checkpoint: {
+          q: "What does Width = 0% sound like?",
+          options: [
+            { text: "Mono — only the Mid channel is left, identical on L and R.", correct: true },
+            { text: "Silence — both channels are muted." },
+            { text: "Twice as loud as Width = 100%." },
+            { text: "Only the left channel plays." },
+          ],
+        },
       },
     ],
   },
@@ -121,7 +142,12 @@ const LESSONS = [
         body: `<p>The real power: EQ Mid and Side independently. Want clearer vocals without thinning out the guitars?
         Boost the highs on Mid only. Want airier sides without making the bass float? Boost highs on Side only.</p>
         <p>Try it: pull the <em>Side low gain</em> down to clean up rumble in the sides without touching the kick.</p>`,
-        setup: { sourceId: "mix", play: true, reset: true },
+        setup: {
+          sourceId: "mix",
+          play: true,
+          reset: true,
+          eq: { side: { lowFreq: 500 } },
+        },
         controls: ["sideLowGain", "sideHighGain", "midHighGain"],
         viz: ["spectrum", "goniometer"],
         checkpoint: {
@@ -144,6 +170,7 @@ export function renderLessons(panel) {
   const progress = loadProgress();
   let currentLessonIdx = 0;
   let currentStepIdx = 0;
+  let stepUnsub = null;
 
   const root = document.createElement("div");
   root.className = "col";
@@ -176,6 +203,8 @@ export function renderLessons(panel) {
   }
 
   function renderStep() {
+    if (stepUnsub) { stepUnsub(); stepUnsub = null; }
+
     const lesson = LESSONS[currentLessonIdx];
     const step = lesson.steps[currentStepIdx];
     stepCard.innerHTML = "";
@@ -198,10 +227,11 @@ export function renderLessons(panel) {
     }
 
     if (step.checkpoint) {
-      left.appendChild(buildCheckpoint(step.checkpoint, () => {
+      left.appendChild(buildCheckpoint(step.checkpoint, lesson.id, () => {
         if (!progress.completed.includes(lesson.id)) {
           progress.completed.push(lesson.id);
           saveProgress(progress);
+          tracker.recordLessonComplete(lesson.id);
           renderNav();
         }
       }));
@@ -228,8 +258,17 @@ export function renderLessons(panel) {
     next.className = "btn primary";
     const isLast = currentLessonIdx === LESSONS.length - 1 && currentStepIdx === lesson.steps.length - 1;
     next.textContent = isLast ? "Done" : "Next →";
-    next.disabled = isLast;
     next.addEventListener("click", () => {
+      if (isLast) {
+        if (!progress.completed.includes(lesson.id)) {
+          progress.completed.push(lesson.id);
+          saveProgress(progress);
+          tracker.recordLessonComplete(lesson.id);
+          renderNav();
+        }
+        showToast("Lessons complete — try the Quiz next.");
+        return;
+      }
       if (currentStepIdx < lesson.steps.length - 1) currentStepIdx++;
       else if (currentLessonIdx < LESSONS.length - 1) { currentLessonIdx++; currentStepIdx = 0; }
       renderStep(); renderNav();
@@ -241,21 +280,76 @@ export function renderLessons(panel) {
     wrap.appendChild(left);
 
     const right = document.createElement("div");
+    right.className = "col";
+
+    const transport = buildLessonTransport(step.sourceChoices);
+    right.appendChild(transport.el);
+    stepUnsub = engine.on(() => transport.sync());
+
     right.appendChild(buildVisualizerGrid(engine, { include: step.viz || ["goniometer"] }));
     wrap.appendChild(right);
 
     stepCard.appendChild(wrap);
 
     if (step.setup) applySetup(step.setup);
+    transport.sync();
   }
 
   renderNav();
   renderStep();
 }
 
-async function applySetup({ sourceId, play, reset }) {
+function buildLessonTransport(sourceChoices) {
+  const card = document.createElement("div");
+  card.className = "card lesson-transport";
+
+  const row = document.createElement("div");
+  row.className = "transport";
+  card.appendChild(row);
+
+  const playBtn = document.createElement("button");
+  playBtn.className = "btn primary";
+  playBtn.type = "button";
+  playBtn.textContent = engine.state.playing ? "Stop" : "Play";
+  playBtn.addEventListener("click", async () => { await engine.toggle(); });
+  row.appendChild(playBtn);
+
+  let sourceBtns = null;
+  if (sourceChoices && sourceChoices.length) {
+    sourceBtns = document.createElement("div");
+    sourceBtns.className = "source-switcher";
+    sourceChoices.forEach((id) => {
+      const def = SOURCE_DEFS.find((s) => s.id === id);
+      if (!def) return;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.sourceId = id;
+      b.textContent = def.label;
+      b.addEventListener("click", async () => { await engine.setSource(id); });
+      sourceBtns.appendChild(b);
+    });
+    card.appendChild(sourceBtns);
+  }
+
+  function sync() {
+    playBtn.textContent = engine.state.playing ? "Stop" : "Play";
+    if (sourceBtns) {
+      Array.from(sourceBtns.children).forEach((b) => {
+        b.classList.toggle("active", b.dataset.sourceId === engine.state.sourceId);
+      });
+    }
+  }
+
+  return { el: card, sync };
+}
+
+async function applySetup({ sourceId, play, reset, eq }) {
   if (reset) engine.resetAll();
   if (sourceId && sourceId !== engine.state.sourceId) await engine.setSource(sourceId);
+  if (eq) {
+    if (eq.mid) engine.setEq("mid", eq.mid);
+    if (eq.side) engine.setEq("side", eq.side);
+  }
   if (play && !engine.state.playing) await engine.play();
 }
 
@@ -316,31 +410,41 @@ function buildLessonControls(keys) {
   return card;
 }
 
-function buildCheckpoint(cp, onCorrect) {
+function buildCheckpoint(cp, lessonId, onCorrect) {
   const card = document.createElement("div");
   card.className = "card quiz-question";
   card.innerHTML = `<h3>Quick check</h3><p>${cp.q}</p>`;
   const opts = document.createElement("div");
   opts.className = "quiz-options";
-  cp.options.forEach((opt) => {
+  const shuffled = shuffle(cp.options);
+  shuffled.forEach((opt) => {
     const b = document.createElement("button");
     b.className = "quiz-option";
     b.textContent = opt.text;
     b.addEventListener("click", () => {
       Array.from(opts.children).forEach((c) => c.disabled = true);
+      tracker.recordLessonCheckpoint(lessonId, cp.q, opt.text, !!opt.correct);
       if (opt.correct) {
         b.classList.add("correct");
         onCorrect?.();
       } else {
         b.classList.add("incorrect");
-        // also reveal the correct one
-        cp.options.forEach((o, i) => { if (o.correct) opts.children[i].classList.add("correct"); });
+        shuffled.forEach((o, i) => { if (o.correct) opts.children[i].classList.add("correct"); });
       }
     });
     opts.appendChild(b);
   });
   card.appendChild(opts);
   return card;
+}
+
+function shuffle(arr) {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 function loadProgress() {

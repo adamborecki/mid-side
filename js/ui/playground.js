@@ -115,14 +115,17 @@ export function renderPlayground(panel) {
     pressed: engine.state.midSolo,
     onChange: (v) => engine.setMidSolo(v),
   });
-  midCard.appendChild(midSoloBtn.el);
   const midGainSlider = makeSlider({
     label: "Mid gain", min: 0, max: 2, step: 0.01, value: engine.state.midGain,
     format: (v) => `${(v * 100).toFixed(0)}%`,
     onInput: (v) => engine.setMidGain(v),
     className: "mid",
   });
-  midCard.appendChild(midGainSlider.el);
+  const midTopRow = document.createElement("div");
+  midTopRow.className = "row bus-top-row";
+  midTopRow.appendChild(midGainSlider.el);
+  midTopRow.appendChild(midSoloBtn.el);
+  midCard.appendChild(midTopRow);
   const midEq = buildEqGroup("mid", engine.state.mid);
   midCard.appendChild(midEq.el);
 
@@ -139,13 +142,16 @@ export function renderPlayground(panel) {
     onInput: (v) => engine.setWidth(v),
     className: "side",
   });
-  sideCard.appendChild(widthSlider.el);
   const sideSoloBtn = makeToggleButton({
     label: "Solo side",
     pressed: engine.state.sideSolo,
     onChange: (v) => engine.setSideSolo(v),
   });
-  sideCard.appendChild(sideSoloBtn.el);
+  const sideTopRow = document.createElement("div");
+  sideTopRow.className = "row bus-top-row";
+  sideTopRow.appendChild(widthSlider.el);
+  sideTopRow.appendChild(sideSoloBtn.el);
+  sideCard.appendChild(sideTopRow);
   const sideEq = buildEqGroup("side", engine.state.side);
   sideCard.appendChild(sideEq.el);
 
