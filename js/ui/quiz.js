@@ -2,6 +2,7 @@
 // Listening questions use the engine to A/B two configurations on the fly.
 
 import { engine } from "../audio/engine.js";
+import { tracker } from "../util/tracker.js";
 
 const QUESTIONS = [
   {
@@ -149,7 +150,9 @@ export function renderQuiz(panel) {
 
   const advanced = document.body.classList.contains("advanced");
   const visible = QUESTIONS.filter((q) => advanced || !q.advanced);
-  const state = { idx: 0, score: 0, answered: 0 };
+  const state = { idx: 0, score: 0, answered: 0, shuffledOptions: [] };
+  visible.forEach((q, i) => { state.shuffledOptions[i] = shuffle(q.options); });
+  tracker.resetQuiz();
 
   const intro = document.createElement("div");
   intro.className = "card";
@@ -184,7 +187,8 @@ export function renderQuiz(panel) {
 
     const opts = document.createElement("div");
     opts.className = "quiz-options";
-    q.options.forEach((opt) => {
+    const shuffled = state.shuffledOptions[state.idx];
+    shuffled.forEach((opt) => {
       const b = document.createElement("button");
       b.className = "quiz-option";
       b.textContent = opt.text;
@@ -204,9 +208,10 @@ export function renderQuiz(panel) {
       state.score++;
     } else {
       btn.classList.add("incorrect");
-      // reveal correct
-      q.options.forEach((o, i) => { if (o.correct) btn.parentElement.children[i].classList.add("correct"); });
+      const shuffled = state.shuffledOptions[state.idx];
+      shuffled.forEach((o, i) => { if (o.correct) btn.parentElement.children[i].classList.add("correct"); });
     }
+    tracker.recordQuizAnswer(state.idx, q.q, opt.text, !!opt.correct);
     state.answered++;
 
     const fb = document.createElement("div");
@@ -237,12 +242,26 @@ export function renderQuiz(panel) {
     const retry = document.createElement("button");
     retry.className = "btn";
     retry.textContent = "Retake quiz";
-    retry.addEventListener("click", () => { state.idx = 0; state.score = 0; state.answered = 0; renderQuestion(); });
+    retry.addEventListener("click", () => {
+      state.idx = 0; state.score = 0; state.answered = 0;
+      visible.forEach((q, i) => { state.shuffledOptions[i] = shuffle(q.options); });
+      tracker.resetQuiz();
+      renderQuestion();
+    });
     wrap.appendChild(retry);
     card.appendChild(wrap);
   }
 
   renderQuestion();
+}
+
+function shuffle(arr) {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
 }
 
 function remark(pct) {

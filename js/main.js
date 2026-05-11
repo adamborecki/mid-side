@@ -7,6 +7,7 @@ import { renderLessons } from "./ui/lessons.js";
 import { renderQuiz } from "./ui/quiz.js";
 import { renderChallenge } from "./ui/challenge.js";
 import { engine } from "./audio/engine.js";
+import { tracker } from "./util/tracker.js";
 
 const RENDERERS = {
   lessons: renderLessons,
@@ -29,9 +30,11 @@ function renderTab(name) {
 }
 
 initAdvancedToggle();
+tracker.start();
 const { activate } = initTabs("lessons");
 
 window.addEventListener("tab:change", (e) => {
+  tracker.markTabEnter(e.detail.name);
   renderTab(e.detail.name);
 });
 
@@ -53,6 +56,7 @@ window.addEventListener("advanced:change", () => {
 const initialTab = ["lessons", "playground", "quiz", "challenge"].find((n) =>
   !document.getElementById(`panel-${n}`).classList.contains("hidden")
 ) || "lessons";
+tracker.markTabEnter(initialTab);
 renderTab(initialTab);
 
 // Resume audio context on the first user gesture (Safari requirement).

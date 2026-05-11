@@ -5,6 +5,7 @@
 import { engine } from "../audio/engine.js";
 import { makeSlider, makeToggleButton, showToast } from "./controls.js";
 import { buildVisualizerGrid } from "./visualizerPanel.js";
+import { tracker, integrityHash, formatDuration } from "../util/tracker.js";
 
 const SCENARIOS = [
   {
@@ -46,9 +47,11 @@ export function renderChallenge(panel) {
   intro.className = "card";
   intro.innerHTML = `<h1>Challenge</h1>
     <p class="dim">${SCENARIOS.length} short scenarios. Each one gives you a goal — dial it in,
-    explain what you did, then export a summary you can share.</p>`;
+    explain what you did, then export a summary you can share.</p>
+    <p class="dim">A copy-to-clipboard summary (with everything you did across all tabs) will appear here after you finish all ${SCENARIOS.length} scenarios.</p>`;
   root.appendChild(intro);
 
+  tracker.resetChallenge();
   const responses = SCENARIOS.map((s) => ({ id: s.id, text: "", snapshot: null }));
 
   let idx = 0;
@@ -168,7 +171,9 @@ export function renderChallenge(panel) {
     next.textContent = idx === SCENARIOS.length - 1 ? "Finish & summarize" : "Next →";
     next.addEventListener("click", () => {
       // snapshot current settings for the summary
-      responses[idx].snapshot = snapshotEngineState();
+      const snap = snapshotEngineState();
+      responses[idx].snapshot = snap;
+      tracker.recordChallengeSnapshot(s.id, snap, responses[idx].text);
       idx++;
       renderScenario();
     });
@@ -179,17 +184,24 @@ export function renderChallenge(panel) {
     card.appendChild(wrap);
   }
 
-  function renderFinal() {
+  async function renderFinal() {
     card.innerHTML = "";
     const h = document.createElement("h2");
-    h.textContent = "Your challenge summary";
+    h.textContent = "Your session summary";
     card.appendChild(h);
 
-    const summary = buildSummary(responses);
+    const note = document.createElement("p");
+    note.className = "dim";
+    note.textContent = "Includes everything you've done across Lessons, Playground, Quiz, and Challenge — plus a SHA-256 integrity hash so a recipient can verify the payload hasn't been edited.";
+    card.appendChild(note);
+
     const pre = document.createElement("pre");
     pre.className = "share-output";
-    pre.textContent = summary;
+    pre.textContent = "Computing integrity hash…";
     card.appendChild(pre);
+
+    const summary = await buildSummary(responses);
+    pre.textContent = summary;
 
     const row = document.createElement("div");
     row.className = "row";
@@ -207,7 +219,12 @@ export function renderChallenge(panel) {
     const restart = document.createElement("button");
     restart.className = "btn";
     restart.textContent = "Start over";
-    restart.addEventListener("click", () => { idx = 0; responses.forEach((r) => { r.text = ""; r.snapshot = null; }); renderScenario(); });
+    restart.addEventListener("click", () => {
+      idx = 0;
+      responses.forEach((r) => { r.text = ""; r.snapshot = null; });
+      tracker.resetChallenge();
+      renderScenario();
+    });
     row.appendChild(copy); row.appendChild(restart);
     card.appendChild(row);
   }
@@ -234,25 +251,86 @@ function snapshotEngineState() {
   };
 }
 
-function buildSummary(responses) {
+async function buildSummary(responses) {
+  const session = tracker.serialize();
+  const payload = {
+    schemaVersion: 1,
+    session,
+    challenge: responses.map((r, i) => ({
+      scenarioId: SCENARIOS[i].id,
+      title: SCENARIOS[i].title,
+      notes: r.text || "",
+      snapshot: r.snapshot,
+    })),
+  };
+  const hash = await integrityHash(payload);
+  const stamped = { ...payload, integrity: hash };
+
   const lines = [];
-  lines.push("Mid-Side Lab — Challenge summary");
-  lines.push("================================");
-  lines.push(new Date().toLocaleString());
+  lines.push("Mid-Side Lab — Session summary");
+  lines.push("==============================");
+  lines.push(`Started:  ${new Date(session.startedAt).toLocaleString()}`);
+  lines.push(`Duration: ${formatDuration(session.durationMs)}`);
+  const tabLine = Object.entries(session.tabs)
+    .map(([k, v]) => `${capitalize(k)} ${formatDuration(v.ms)} (${v.visits}x)`)
+    .join(" · ");
+  lines.push(`Time per tab: ${tabLine}`);
+
+  const lessonIds = session.lessonsCompleted.map((l) => l.id);
+  lines.push(`Lessons completed: ${lessonIds.length} (${lessonIds.join(", ") || "none"})`);
+  if (session.checkpointAnswers.length) {
+    const cpCorrect = session.checkpointAnswers.filter((a) => a.correct).length;
+    lines.push(`Lesson checkpoints: ${cpCorrect} / ${session.checkpointAnswers.length} correct`);
+  }
+  if (session.quizAnswers.length) {
+    const qCorrect = session.quizAnswers.filter((a) => a.correct).length;
+    lines.push(`Quiz answers: ${qCorrect} / ${session.quizAnswers.length} correct`);
+  }
   lines.push("");
+
+  if (session.quizAnswers.length) {
+    lines.push("Quiz answers");
+    lines.push("------------");
+    session.quizAnswers.forEach((a, i) => {
+      lines.push(`  Q${i + 1}. ${a.question}`);
+      lines.push(`       chose: ${a.chosen} ${a.correct ? "[✓]" : "[✗]"}`);
+    });
+    lines.push("");
+  }
+
+  if (session.checkpointAnswers.length) {
+    lines.push("Lesson checkpoints");
+    lines.push("------------------");
+    session.checkpointAnswers.forEach((a) => {
+      lines.push(`  [${a.lessonId}] ${a.question}`);
+      lines.push(`       chose: ${a.chosen} ${a.correct ? "[✓]" : "[✗]"}`);
+    });
+    lines.push("");
+  }
+
+  lines.push("Challenge scenarios");
+  lines.push("-------------------");
   responses.forEach((r, i) => {
     const s = SCENARIOS[i];
     lines.push(`${i + 1}. ${s.title}`);
-    lines.push("-".repeat(s.title.length + 3));
     if (r.snapshot) {
       const sn = r.snapshot;
       lines.push(`   Width:    ${(sn.width * 100).toFixed(0)}%`);
       lines.push(`   Mid gain: ${(sn.midGain * 100).toFixed(0)}%`);
-      lines.push(`   Mid EQ:   low ${sn.mid.lowGain.toFixed(1)} dB / mid ${sn.mid.midGain.toFixed(1)} dB / high ${sn.mid.highGain.toFixed(1)} dB`);
-      lines.push(`   Side EQ:  low ${sn.side.lowGain.toFixed(1)} dB / mid ${sn.side.midGain.toFixed(1)} dB / high ${sn.side.highGain.toFixed(1)} dB`);
+      lines.push(`   Bypass:   ${sn.bypass ? "on" : "off"}    Mono check: ${sn.monoSum ? "on" : "off"}`);
+      lines.push(`   Mid EQ:   low ${sn.mid.lowGain.toFixed(1)} dB @ ${Math.round(sn.mid.lowFreq)} Hz / mid ${sn.mid.midGain.toFixed(1)} dB @ ${Math.round(sn.mid.midFreq)} Hz / high ${sn.mid.highGain.toFixed(1)} dB @ ${Math.round(sn.mid.highFreq)} Hz`);
+      lines.push(`   Side EQ:  low ${sn.side.lowGain.toFixed(1)} dB @ ${Math.round(sn.side.lowFreq)} Hz / mid ${sn.side.midGain.toFixed(1)} dB @ ${Math.round(sn.side.midFreq)} Hz / high ${sn.side.highGain.toFixed(1)} dB @ ${Math.round(sn.side.highFreq)} Hz`);
     }
     lines.push(`   Notes: ${r.text || "(no notes)"}`);
     lines.push("");
   });
+
+  lines.push(`Integrity (SHA-256): ${hash}`);
+  lines.push("");
+  lines.push("--- machine-readable payload ---");
+  lines.push(JSON.stringify(stamped, null, 2));
+
   return lines.join("\n");
 }
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
